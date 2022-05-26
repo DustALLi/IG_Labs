@@ -41,12 +41,18 @@ static void RenderSceneCB(){
 	glClear(GL_COLOR_BUFFER_BIT);
 	glColor3f(1.0f, 0.0f, 1.0f);
 
-	mat4  World;
+	mat4 World;
+	World[0][0] = cosf(Scale); World[0][1] = -sinf(Scale); World[0][2] = 0.0f; World[0][3] = 0.0f;
+	World[1][0] = sinf(Scale); World[1][1] = cosf(Scale);  World[1][2] = 0.0f; World[1][3] = 0.0f;
+	World[2][0] = 0.0f;        World[2][1] = 0.0f;         World[2][2] = 1.0f; World[2][3] = 0.0f;
+	World[3][0] = 0.0f;        World[3][1] = 0.0f;         World[3][2] = 0.0f; World[3][3] = 1.0f;
+	
+	/*mat4  World;
 	World[0][0] = 1.0f; World[0][1] = 0.0f; World[0][2] = 0.0f; World[0][3] = sinf(Scale);
 	World[1][0] = 0.0f; World[1][1] = 1.0f; World[1][2] = 0.0f; World[1][3] = 0.0f;
 	World[2][0] = 0.0f; World[2][1] = 0.0f; World[2][2] = 1.0f; World[2][3] = 0.0f;
 	World[3][0] = 0.0f; World[3][1] = 0.0f; World[3][2] = 0.0f; World[3][3] = 1.0f;
-
+	*/
 	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, &World[0][0]);	
 
 	glEnableVertexAttribArray(0);
@@ -182,37 +188,3 @@ int main(int argc, char** argv)
 
 	return 0;
 }
-
-
-/*
-int main(int argc, char* argv[]) {
-    glutInit(&argc, argv);
-
-    glutInitWindowSize(500, 500);
-    glutInitWindowPosition(100, 100);
-    glutInitDisplayMode(GLUT_RGB);
-
-    glutCreateWindow("kirill rulz ok");
-    glutDisplayFunc(RenderSceneCB);
-
-    glm::vec3 Vertices[4];
-    Vertices[0] = glm::vec3(-0.5f, 0.0f, 0.0f);
-    Vertices[1] = glm::vec3(0.0f, 0.5f, 0.0f);
-    Vertices[2] = glm::vec3(0.5f, 0.0f, 0.0f);
-    Vertices[3] = glm::vec3(0, 0, 0);
-
-    InitializeGlutCallbacks();
-
-    GLenum res = glewInit();
-    if (res != GLEW_OK)
-    {
-        fprintf(stderr, "Error: '%s'\n", glewGetErrorString(res));
-        return 1;
-    }
-
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-    CreateVertexBuffer();
-    CompileShaders();
-    glutMainLoop();
-}*/
