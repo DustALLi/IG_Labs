@@ -8,7 +8,10 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-//Индивидуальное задание - объединение 3х преобразований
+#define ToRadian(x) ((x) * M_PI / 180.0f)
+#define ToDegree(x) ((x) * 180.0f / M_PI)
+
+#define M_PI 3.14159
 
 GLuint VBO;
 GLuint gWorldLocation;
@@ -35,6 +38,94 @@ void main()                                                                     
     FragColor = vec4(1.0, 0.0, 1.0, 0.0);                                           \n\
 }";	
 
+class Pipeline
+{
+private:
+	vec3 scale;
+	vec3 worldPos;
+	vec3 rotateInfo;
+	mat4 transformation;
+
+public:
+	Pipeline()
+	{
+		scale = vec3(1.0f, 1.0f, 1.0f);
+		worldPos = vec3(0.0f, 0.0f, 0.0f);
+		rotateInfo = vec3(0.0f, 0.0f, 0.0f);
+
+	}
+
+	void Scale(float ScaleX, float ScaleY, float ScaleZ)
+	{
+		scale.x = ScaleX;
+		scale.y = ScaleY;
+		scale.z = ScaleZ;
+	}
+	void WorldPos(float x, float y, float z)
+	{
+		worldPos.x = x;
+		worldPos.y = y;
+		worldPos.z = z;
+	}
+	void Rotate(float RotateX, float RotateY, float RotateZ)
+	{
+		rotateInfo.x = RotateX;
+		rotateInfo.y = RotateY;
+		rotateInfo.z = RotateZ;
+	}
+
+	const mat4* getTransformation()
+	{
+		mat4 ScaleTrans, RotateTrans, TranslationTrans;
+		
+		InitScaleTransform(ScaleTrans);
+		InitRotateTransform(RotateTrans);
+		InitTranslationTransform(TranslationTrans);
+		
+		transformation = TranslationTrans * RotateTrans * ScaleTrans;
+		return &transformation;
+	}
+	void InitScaleTransform(mat4& m) const
+	{
+		m[0][0] = scale.x;   m[0][1] = 0.0f;	  m[0][2] = 0.0f;	   m[0][3] = 0.0f;
+		m[1][0] = 0.0f;		 m[1][1] = scale.y;   m[1][2] = 0.0f;	   m[1][3] = 0.0f;
+		m[2][0] = 0.0f;		 m[2][1] = 0.0f;	  m[2][2] = scale.z;   m[2][3] = 0.0f;
+		m[3][0] = 0.0f;		 m[3][1] = 0.0f;	  m[3][2] = 0.0f;	   m[3][3] = 1.0f;
+	}
+
+	void InitRotateTransform(glm::mat4& m) const
+	{
+		mat4 rx, ry, rz;
+		const float x = ToRadian(rotateInfo.x);
+		const float y = ToRadian(rotateInfo.y);
+		const float z = ToRadian(rotateInfo.z);
+
+		rx[0][0] = 1.0f;	rx[0][1] = 0.0f;	 rx[0][2] = 0.0f;		rx[0][3] = 0.0f;
+		rx[1][0] = 0.0f;	rx[1][1] = cosf(x);	 rx[1][2] = -sinf(x);	rx[1][3] = 0.0f;
+		rx[2][0] = 0.0f;	rx[2][1] = sinf(x);  rx[2][2] = cosf(x);	rx[2][3] = 0.0f;
+		rx[3][0] = 0.0f;	rx[3][1] = 0.0f;	 rx[3][2] = 0.0f;		rx[3][3] = 1.0f;
+
+		ry[0][0] = cosf(y); ry[0][1] = 0.0f;	 ry[0][2] = -sinf(y);	ry[0][3] = 0.0f;
+		ry[1][0] = 0.0f;	ry[1][1] = 1.0f;	 ry[1][2] = 0.0f;		ry[1][3] = 0.0f;
+		ry[2][0] = sinf(y); ry[2][1] = 0.0f;	 ry[2][2] = cosf(y);	ry[2][3] = 0.0f;
+		ry[3][0] = 0.0f;	ry[3][1] = 0.0f;	 ry[3][2] = 0.0f;		ry[3][3] = 1.0f;
+
+		rz[0][0] = cosf(z); rz[0][1] = -sinf(z); rz[0][2] = 0.0f;		rz[0][3] = 0.0f;
+		rz[1][0] = sinf(z); rz[1][1] = cosf(z);	 rz[1][2] = 0.0f;		rz[1][3] = 0.0f;
+		rz[2][0] = 0.0f;	rz[2][1] = 0.0f;	 rz[2][2] = 1.0f;		rz[2][3] = 0.0f;
+		rz[3][0] = 0.0f;	rz[3][1] = 0.0f;	 rz[3][2] = 0.0f;		rz[3][3] = 1.0f;
+
+		m = rz * ry * rx;
+	}
+
+	void InitTranslationTransform(mat4& m) const
+	{
+		m[0][0] = 1.0f; m[0][1] = 0.0f; m[0][2] = 0.0f; m[0][3] = worldPos.x;
+		m[1][0] = 0.0f; m[1][1] = 1.0f; m[1][2] = 0.0f; m[1][3] = worldPos.y;
+		m[2][0] = 0.0f; m[2][1] = 0.0f; m[2][2] = 1.0f; m[2][3] = worldPos.z;
+		m[3][0] = 0.0f; m[3][1] = 0.0f; m[3][2] = 0.0f; m[3][3] = 1.0f;
+	}
+};
 
 static void RenderSceneCB(){
 
@@ -63,7 +154,12 @@ static void RenderSceneCB(){
 
 	mat4 WorldFinal = World1 * World2 * World3;
 
-	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, &WorldFinal[0][0]);	
+	Pipeline p;
+	p.Scale(sinf(Scale * 0.1f), sinf(Scale * 0.1f), sinf(Scale * 0.1f));
+	p.WorldPos(sinf(Scale), 0.0f, 0.0f);
+	p.Rotate(sinf(Scale) * 90.0f, sinf(Scale) * 90.0f, sinf(Scale) * 90.0f);
+
+	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat*)p.getTransformation());
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -171,15 +267,15 @@ int main(int argc, char** argv)
 	glutInitWindowPosition(100, 100);
 	glutInitDisplayMode(GLUT_RGB);
 	
-	glutCreateWindow("Tutorial 06");
+	glutCreateWindow("Tutorial 11");
 
 	glutDisplayFunc(RenderSceneCB);
 
 	vec3 Vertices[4];
-	Vertices[0] = glm::vec3(-0.5f, 0.0f, 0.0f);
-	Vertices[1] = glm::vec3(0.0f, 0.5f, 0.0f);
-	Vertices[2] = glm::vec3(0.5f, 0.0f, 0.0f);
-	Vertices[3] = glm::vec3(0, 0, 0);
+	Vertices[0] = vec3(-0.5f, 0.0f, 0.0f);
+	Vertices[1] = vec3(0.0f, 0.5f, 0.0f);
+	Vertices[2] = vec3(0.5f, 0.0f, 0.0f);
+	Vertices[3] = vec3(0, 0, 0);
 
 	InitializeGlutCallbacks();
 
@@ -198,3 +294,7 @@ int main(int argc, char** argv)
 
 	return 0;
 }
+
+
+
+
