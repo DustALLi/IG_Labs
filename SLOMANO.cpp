@@ -8,6 +8,8 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
+//Индивидуальное задание - объединение 3х преобразований
+
 GLuint VBO;
 GLuint gWorldLocation;
 
@@ -41,25 +43,27 @@ static void RenderSceneCB(){
 	glClear(GL_COLOR_BUFFER_BIT);
 	glColor3f(1.0f, 0.0f, 1.0f);
 
-	mat4  World;
-	World[0][0] = sinf(Scale);  World[0][1] = 0.0f;			World[0][2] = 0.0f;			World[0][3] = 0.0f;
-	World[1][0] = 0.0f;			World[1][1] = cosf(Scale);  World[1][2] = 0.0f;			World[1][3] = 0.0f;
-	World[2][0] = 0.0f;			World[2][1] = 0.0f;			World[2][2] = sinf(Scale);  World[2][3] = 0.0f;
-	World[3][0] = 0.0f;			World[3][1] = 0.0f;			World[3][2] = 0.0f;			World[3][3] = 1.0f;
+	mat4 World1;
+	World1[0][0] = 1.0f;			World1[0][1] = 0.0f;			World1[0][2] = 0.0f;			World1[0][3] = sinf(Scale);
+	World1[1][0] = 0.0f;		    World1[1][1] = 1.0f;			World1[1][2] = 0.0f;			World1[1][3] = 0.0f;
+	World1[2][0] = 0.0f;			World1[2][1] = 0.0f;			World1[2][2] = 1.0f;			World1[2][3] = 0.0f;
+	World1[3][0] = 0.0f;			World1[3][1] = 0.0f;			World1[3][2] = 0.0f;			World1[3][3] = 1.0f;
 
-	/*mat4 World;
-	World[0][0] = cosf(Scale); World[0][1] = -sinf(Scale); World[0][2] = 0.0f; World[0][3] = 0.0f;
-	World[1][0] = sinf(Scale); World[1][1] = cosf(Scale);  World[1][2] = 0.0f; World[1][3] = 0.0f;
-	World[2][0] = 0.0f;        World[2][1] = 0.0f;         World[2][2] = 1.0f; World[2][3] = 0.0f;
-	World[3][0] = 0.0f;        World[3][1] = 0.0f;         World[3][2] = 0.0f; World[3][3] = 1.0f;
-	*/
-	/*mat4  World;
-	World[0][0] = 1.0f; World[0][1] = 0.0f; World[0][2] = 0.0f; World[0][3] = sinf(Scale);
-	World[1][0] = 0.0f; World[1][1] = 1.0f; World[1][2] = 0.0f; World[1][3] = 0.0f;
-	World[2][0] = 0.0f; World[2][1] = 0.0f; World[2][2] = 1.0f; World[2][3] = 0.0f;
-	World[3][0] = 0.0f; World[3][1] = 0.0f; World[3][2] = 0.0f; World[3][3] = 1.0f;
-	*/
-	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, &World[0][0]);	
+	mat4 World2;
+	World2[0][0] = cosf(Scale);		World2[0][1] = -sinf(Scale);	World2[0][2] = 0.0f;			World2[0][3] = 0.0f;
+	World2[1][0] = sinf(Scale);		World2[1][1] = cosf(Scale);		World2[1][2] = 0.0f;			World2[1][3] = 0.0f;
+	World2[2][0] = 0.0f;			World2[2][1] = 0.0f;			World2[2][2] = 1.0f;			World2[2][3] = 0.0f;
+	World2[3][0] = 0.0f;			World2[3][1] = 0.0f;			World2[3][2] = 0.0f;			World2[3][3] = 1.0f;
+
+	mat4 World3;
+	World3[0][0] = sinf(Scale);		World3[0][1] = 0.0f;			World3[0][2] = 0.0f;			World3[0][3] = 0.0f;
+	World3[1][0] = 0.0f;			World3[1][1] = cosf(Scale);		World3[1][2] = 0.0f;			World3[1][3] = 0.0f;
+	World3[2][0] = 0.0f;			World3[2][1] = 0.0f;			World3[2][2] = sinf(Scale);		World3[2][3] = 0.0f;
+	World3[3][0] = 0.0f;			World3[3][1] = 0.0f;			World3[3][2] = 0.0f;			World3[3][3] = 1.0f;
+
+	mat4 WorldFinal = World1 * World2 * World3;
+
+	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, &WorldFinal[0][0]);	
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -67,7 +71,7 @@ static void RenderSceneCB(){
 	
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
-	Scale += 0.01f;
+	Scale += 0.001f;
 
 	glDisableVertexAttribArray(0);
 	
