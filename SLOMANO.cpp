@@ -11,6 +11,9 @@ using namespace glm;
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
 
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
+
 #define M_PI 3.14159
 
 GLuint VBO;
@@ -46,13 +49,20 @@ private:
 	vec3 rotateInfo;
 	mat4 transformation;
 
+struct {
+	float FOV;
+	float width;
+	float height;
+	float zNear;
+	float zFar;
+} mPersProj;
+
 public:
 	Pipeline()
 	{
 		scale = vec3(1.0f, 1.0f, 1.0f);
 		worldPos = vec3(0.0f, 0.0f, 0.0f);
 		rotateInfo = vec3(0.0f, 0.0f, 0.0f);
-
 	}
 
 	void Scale(float ScaleX, float ScaleY, float ScaleZ)
@@ -61,12 +71,14 @@ public:
 		scale.y = ScaleY;
 		scale.z = ScaleZ;
 	}
+
 	void WorldPos(float x, float y, float z)
 	{
 		worldPos.x = x;
 		worldPos.y = y;
 		worldPos.z = z;
 	}
+
 	void Rotate(float RotateX, float RotateY, float RotateZ)
 	{
 		rotateInfo.x = RotateX;
@@ -74,17 +86,27 @@ public:
 		rotateInfo.z = RotateZ;
 	}
 
+	void PerspectiveProj(float FOV, float width, float height, float zNear, float zFar) {
+		mPersProj.FOV = FOV;
+		mPersProj.width = width;
+		mPersProj.height = height;
+		mPersProj.zNear = zNear;
+		mPersProj.zFar = zFar;
+	}
+
 	const mat4* getTransformation()
 	{
-		mat4 ScaleTrans, RotateTrans, TranslationTrans;
+		mat4 ScaleTrans, RotateTrans, TranslationTrans, persProjTrans;
 		
 		InitScaleTransform(ScaleTrans);
 		InitRotateTransform(RotateTrans);
+		InitPerspectiveProj(persProjTrans);
 		InitTranslationTransform(TranslationTrans);
 		
-		transformation = TranslationTrans * RotateTrans * ScaleTrans;
+		transformation = persProjTrans * TranslationTrans * RotateTrans * ScaleTrans;
 		return &transformation;
 	}
+
 	void InitScaleTransform(mat4& m) const
 	{
 		m[0][0] = scale.x;   m[0][1] = 0.0f;	  m[0][2] = 0.0f;	   m[0][3] = 0.0f;
@@ -125,6 +147,19 @@ public:
 		m[2][0] = 0.0f; m[2][1] = 0.0f; m[2][2] = 1.0f; m[2][3] = worldPos.z;
 		m[3][0] = 0.0f; m[3][1] = 0.0f; m[3][2] = 0.0f; m[3][3] = 1.0f;
 	}
+
+	void InitPerspectiveProj(mat4& m) const {
+		const float ar = mPersProj.width / mPersProj.height;
+		const float zNear = mPersProj.zNear;
+		const float zFar = mPersProj.zFar;
+		const float zRange = zNear - zFar;
+		const float tanHalfFOV = tanf(ToRadian(mPersProj.FOV / 2.0f));
+
+		m[0][0] = 1.0f / (tanHalfFOV * ar);     m[0][1] = 0.0f;                 m[0][2] = 0.0f;                         m[0][3] = 0.0;
+		m[1][0] = 0.0f;                         m[1][1] = 1.0f / tanHalfFOV;    m[1][2] = 0.0f;                         m[1][3] = 0.0;
+		m[2][0] = 0.0f;                         m[2][1] = 0.0f;                 m[2][2] = (-zNear - zFar) / zRange;     m[2][3] = 2.0f * zFar * zNear / zRange;
+		m[3][0] = 0.0f;                         m[3][1] = 0.0f;                 m[3][2] = 1.0f;                         m[3][3] = 0.0;
+	}
 };
 
 static void RenderSceneCB(){
@@ -158,6 +193,7 @@ static void RenderSceneCB(){
 	p.Scale(sinf(Scale * 0.1f), sinf(Scale * 0.1f), sinf(Scale * 0.1f));
 	p.WorldPos(sinf(Scale), 0.0f, 0.0f);
 	p.Rotate(sinf(Scale) * 90.0f, sinf(Scale) * 90.0f, sinf(Scale) * 90.0f);
+	p.PerspectiveProj(90.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 10.0f, 1000.0f);
 
 	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat*)p.getTransformation());
 
@@ -294,7 +330,3 @@ int main(int argc, char** argv)
 
 	return 0;
 }
-
-
-
-
