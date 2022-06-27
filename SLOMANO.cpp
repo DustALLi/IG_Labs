@@ -1,20 +1,12 @@
-#include<stdio.h>
-#include<iostream>
-#include <assert.h>
-#include <math.h>
-#include<GL/glew.h>
-#include<GL/freeglut.h>
-#include <glm/vec3.hpp>
-#include <glm/glm.hpp>
-using namespace glm;
+#include <stdio.h>
+#include <GL/glew.h>
+#include <GL/freeglut.h>
+#include "glm/vec3.hpp"
+#include "glm/mat4x4.hpp"
+#include "pipeline.h"
 
-#define ToRadian(x) ((x) * M_PI / 180.0f)
-#define ToDegree(x) ((x) * 180.0f / M_PI)
-
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
-
-#define M_PI 3.14159
+#define WINDOW_WIDTH 1024.0f
+#define WINDOW_HEIGHT 800.0f
 
 GLuint VBO;
 GLuint gWorldLocation;
@@ -26,7 +18,7 @@ layout (location = 0) in vec3 Position;                                         
                                                                                     \n\
 uniform mat4 gWorld;                                                                \n\
                                                                                     \n\
-void main()                                                                         \n\
+void main()                                                                          \n\
 {                                                                                   \n\
     gl_Position = gWorld * vec4(Position, 1.0);                                     \n\
 }";
@@ -39,294 +31,159 @@ out vec4 FragColor;                                                             
 void main()                                                                         \n\
 {                                                                                   \n\
     FragColor = vec4(1.0, 0.0, 1.0, 0.0);                                           \n\
-}";	
+}";
 
-class Pipeline
+    static void RenderSceneCB()
+    {
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glColor3f(1.0f, 0.0f, 0.0f);
+
+        static float Scale = 0.0f;
+        Scale += 0.01f;
+        //Функция отрисовки
+        Pipeline p;
+        p.Scale(cos(Scale * 0.5), sinf(Scale * 0.5), 0.0f);
+        p.WorldPos(sinf(Scale) / 2, cosf(Scale) / 2, 0.0f);
+        p.Rotate(Scale, Scale, Scale);
+        p.PerspectiveProj(100.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f, 200.0f);
+    
+        //Первый параметр - это адрес uniform-переменной (находится после компиляции шейдера используя glGetUniformLocation()).\
+        //Второй параметр - это количество матриц, значения которых мы обновляем.\ 
+        //Наш третий параметр в glUniformMatrix4fv() - это GL_TRUE, потому что мы поставляем матрицу упорядоченную по строкам.\
+        //Четвертый параметр - это просто указатель на первый элемент матрицы\
+
+        glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat*)p.getTransformation());
+
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glDisableVertexAttribArray(0);
+
+        glutSwapBuffers();
+    }
+
+static void InitializeGlutCallbacks()
 {
-private:
-	vec3 scale;
-	vec3 worldPos;
-	vec3 rotateInfo;
-	mat4 transformation;
-
-struct {
-	float FOV;
-	float width;
-	float height;
-	float zNear;
-	float zFar;
-} mPersProj;
-
-public:
-	Pipeline()
-	{
-		scale = vec3(1.0f, 1.0f, 1.0f);
-		worldPos = vec3(0.0f, 0.0f, 0.0f);
-		rotateInfo = vec3(0.0f, 0.0f, 0.0f);
-	}
-
-	void Scale(float ScaleX, float ScaleY, float ScaleZ)
-	{
-		scale.x = ScaleX;
-		scale.y = ScaleY;
-		scale.z = ScaleZ;
-	}
-
-	void WorldPos(float x, float y, float z)
-	{
-		worldPos.x = x;
-		worldPos.y = y;
-		worldPos.z = z;
-	}
-
-	void Rotate(float RotateX, float RotateY, float RotateZ)
-	{
-		rotateInfo.x = RotateX;
-		rotateInfo.y = RotateY;
-		rotateInfo.z = RotateZ;
-	}
-
-	void PerspectiveProj(float FOV, float width, float height, float zNear, float zFar) {
-		mPersProj.FOV = FOV;
-		mPersProj.width = width;
-		mPersProj.height = height;
-		mPersProj.zNear = zNear;
-		mPersProj.zFar = zFar;
-	}
-
-	const mat4* getTransformation()
-	{
-		mat4 ScaleTrans, RotateTrans, TranslationTrans, persProjTrans;
-		
-		InitScaleTransform(ScaleTrans);
-		InitRotateTransform(RotateTrans);
-		InitPerspectiveProj(persProjTrans);
-		InitTranslationTransform(TranslationTrans);
-		
-		transformation = persProjTrans * TranslationTrans * RotateTrans * ScaleTrans;
-		return &transformation;
-	}
-
-	void InitScaleTransform(mat4& m) const
-	{
-		m[0][0] = scale.x;   m[0][1] = 0.0f;	  m[0][2] = 0.0f;	   m[0][3] = 0.0f;
-		m[1][0] = 0.0f;		 m[1][1] = scale.y;   m[1][2] = 0.0f;	   m[1][3] = 0.0f;
-		m[2][0] = 0.0f;		 m[2][1] = 0.0f;	  m[2][2] = scale.z;   m[2][3] = 0.0f;
-		m[3][0] = 0.0f;		 m[3][1] = 0.0f;	  m[3][2] = 0.0f;	   m[3][3] = 1.0f;
-	}
-
-	void InitRotateTransform(glm::mat4& m) const
-	{
-		mat4 rx, ry, rz;
-		const float x = ToRadian(rotateInfo.x);
-		const float y = ToRadian(rotateInfo.y);
-		const float z = ToRadian(rotateInfo.z);
-
-		rx[0][0] = 1.0f;	rx[0][1] = 0.0f;	 rx[0][2] = 0.0f;		rx[0][3] = 0.0f;
-		rx[1][0] = 0.0f;	rx[1][1] = cosf(x);	 rx[1][2] = -sinf(x);	rx[1][3] = 0.0f;
-		rx[2][0] = 0.0f;	rx[2][1] = sinf(x);  rx[2][2] = cosf(x);	rx[2][3] = 0.0f;
-		rx[3][0] = 0.0f;	rx[3][1] = 0.0f;	 rx[3][2] = 0.0f;		rx[3][3] = 1.0f;
-
-		ry[0][0] = cosf(y); ry[0][1] = 0.0f;	 ry[0][2] = -sinf(y);	ry[0][3] = 0.0f;
-		ry[1][0] = 0.0f;	ry[1][1] = 1.0f;	 ry[1][2] = 0.0f;		ry[1][3] = 0.0f;
-		ry[2][0] = sinf(y); ry[2][1] = 0.0f;	 ry[2][2] = cosf(y);	ry[2][3] = 0.0f;
-		ry[3][0] = 0.0f;	ry[3][1] = 0.0f;	 ry[3][2] = 0.0f;		ry[3][3] = 1.0f;
-
-		rz[0][0] = cosf(z); rz[0][1] = -sinf(z); rz[0][2] = 0.0f;		rz[0][3] = 0.0f;
-		rz[1][0] = sinf(z); rz[1][1] = cosf(z);	 rz[1][2] = 0.0f;		rz[1][3] = 0.0f;
-		rz[2][0] = 0.0f;	rz[2][1] = 0.0f;	 rz[2][2] = 1.0f;		rz[2][3] = 0.0f;
-		rz[3][0] = 0.0f;	rz[3][1] = 0.0f;	 rz[3][2] = 0.0f;		rz[3][3] = 1.0f;
-
-		m = rz * ry * rx;
-	}
-
-	void InitTranslationTransform(mat4& m) const
-	{
-		m[0][0] = 1.0f; m[0][1] = 0.0f; m[0][2] = 0.0f; m[0][3] = worldPos.x;
-		m[1][0] = 0.0f; m[1][1] = 1.0f; m[1][2] = 0.0f; m[1][3] = worldPos.y;
-		m[2][0] = 0.0f; m[2][1] = 0.0f; m[2][2] = 1.0f; m[2][3] = worldPos.z;
-		m[3][0] = 0.0f; m[3][1] = 0.0f; m[3][2] = 0.0f; m[3][3] = 1.0f;
-	}
-
-	void InitPerspectiveProj(mat4& m) const {
-		const float ar = mPersProj.width / mPersProj.height;
-		const float zNear = mPersProj.zNear;
-		const float zFar = mPersProj.zFar;
-		const float zRange = zNear - zFar;
-		const float tanHalfFOV = tanf(ToRadian(mPersProj.FOV / 2.0f));
-
-		m[0][0] = 1.0f / (tanHalfFOV * ar);     m[0][1] = 0.0f;                 m[0][2] = 0.0f;                         m[0][3] = 0.0;
-		m[1][0] = 0.0f;                         m[1][1] = 1.0f / tanHalfFOV;    m[1][2] = 0.0f;                         m[1][3] = 0.0;
-		m[2][0] = 0.0f;                         m[2][1] = 0.0f;                 m[2][2] = (-zNear - zFar) / zRange;     m[2][3] = 2.0f * zFar * zNear / zRange;
-		m[3][0] = 0.0f;                         m[3][1] = 0.0f;                 m[3][2] = 1.0f;                         m[3][3] = 0.0;
-	}
-};
-
-static void RenderSceneCB(){
-
-	static float Scale = 0.0f;
-	
-	glClear(GL_COLOR_BUFFER_BIT);
-	glColor3f(1.0f, 0.0f, 1.0f);
-
-	mat4 World1;
-	World1[0][0] = 1.0f;			World1[0][1] = 0.0f;			World1[0][2] = 0.0f;			World1[0][3] = sinf(Scale);
-	World1[1][0] = 0.0f;		    World1[1][1] = 1.0f;			World1[1][2] = 0.0f;			World1[1][3] = 0.0f;
-	World1[2][0] = 0.0f;			World1[2][1] = 0.0f;			World1[2][2] = 1.0f;			World1[2][3] = 0.0f;
-	World1[3][0] = 0.0f;			World1[3][1] = 0.0f;			World1[3][2] = 0.0f;			World1[3][3] = 1.0f;
-
-	mat4 World2;
-	World2[0][0] = cosf(Scale);		World2[0][1] = -sinf(Scale);	World2[0][2] = 0.0f;			World2[0][3] = 0.0f;
-	World2[1][0] = sinf(Scale);		World2[1][1] = cosf(Scale);		World2[1][2] = 0.0f;			World2[1][3] = 0.0f;
-	World2[2][0] = 0.0f;			World2[2][1] = 0.0f;			World2[2][2] = 1.0f;			World2[2][3] = 0.0f;
-	World2[3][0] = 0.0f;			World2[3][1] = 0.0f;			World2[3][2] = 0.0f;			World2[3][3] = 1.0f;
-
-	mat4 World3;
-	World3[0][0] = sinf(Scale);		World3[0][1] = 0.0f;			World3[0][2] = 0.0f;			World3[0][3] = 0.0f;
-	World3[1][0] = 0.0f;			World3[1][1] = cosf(Scale);		World3[1][2] = 0.0f;			World3[1][3] = 0.0f;
-	World3[2][0] = 0.0f;			World3[2][1] = 0.0f;			World3[2][2] = sinf(Scale);		World3[2][3] = 0.0f;
-	World3[3][0] = 0.0f;			World3[3][1] = 0.0f;			World3[3][2] = 0.0f;			World3[3][3] = 1.0f;
-
-	mat4 WorldFinal = World1 * World2 * World3;
-
-	Pipeline p;
-	p.Scale(sinf(Scale * 0.1f), sinf(Scale * 0.1f), sinf(Scale * 0.1f));
-	p.WorldPos(sinf(Scale), 0.0f, 0.0f);
-	p.Rotate(sinf(Scale) * 90.0f, sinf(Scale) * 90.0f, sinf(Scale) * 90.0f);
-	p.PerspectiveProj(90.0f, WINDOW_WIDTH, WINDOW_HEIGHT, 10.0f, 1000.0f);
-
-	glUniformMatrix4fv(gWorldLocation, 1, GL_TRUE, (const GLfloat*)p.getTransformation());
-
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	
-	glDrawArrays(GL_TRIANGLES, 0, 3);
-
-	Scale += 0.001f;
-
-	glDisableVertexAttribArray(0);
-	
-	glutSwapBuffers();
+    glutDisplayFunc(RenderSceneCB);
+    glutIdleFunc(RenderSceneCB);
 }
 
-static void InitializeGlutCallbacks(){
-	glutDisplayFunc(RenderSceneCB);
-	glutIdleFunc(RenderSceneCB);
-}
+static void CreateVertexBuffer()
+{
+    double r = 0.5;
+    double t = 1.0;
+    const double PI = 3.141592653589793;
 
-static void CreateVertexBuffer(){
-	vec3 Vertices[3];
-	Vertices[0] = vec3(-0.5f, -0.5f, 0.0f);
-	Vertices[1] = vec3(0.5f, -0.5f, 0.0f);
-	Vertices[2] = vec3(0.0f, 0.5f, 0.0f);
-	
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
-}
+    glm::vec3 Vertices[8];
 
+    for (int i = 0; i < 8; i++) {
+        Vertices[i] = glm::vec3(r * cos(t + i * PI * 0.25), r * sin(t + i * PI * 0.25), 0.0f);
+    }
+
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+}
+// Функция, добавляющая шейдер к программе
 static void AddShader(GLuint ShaderProgram, const char* pShaderText, GLenum ShaderType)
 {
-	GLuint ShaderObj = glCreateShader(ShaderType);
+    // Создаём шейдер
+    GLuint ShaderObj = glCreateShader(ShaderType);
 
-	if (ShaderObj == 0) {
-		fprintf(stderr, "Error creating shader type %d\n", ShaderType);
-		exit(0);
-	}
-
-	const GLchar* p[1];
-	
-	p[0] = pShaderText;
-	GLint Lengths[1];
-	Lengths[0] = strlen(pShaderText);
-	
-	glShaderSource(ShaderObj, 1, p, Lengths);
-	glCompileShader(ShaderObj);
-	
-	GLint success;
-	glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
-	
-	if (!success) {
-		GLchar InfoLog[1024];
-		glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
-		
-		fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
-		exit(1);
-	}
-	glAttachShader(ShaderProgram, ShaderObj);
+    if (ShaderObj == 0) {
+        fprintf(stderr, "Error creating shader type %d\n", ShaderType);
+        exit(0);
+    }
+    // Сохраняем код шейдера в массиве
+    const GLchar* p[1];
+    p[0] = pShaderText;
+    // Массив длин кодов шейдеров
+    GLint Lengths[1];
+    Lengths[0] = strlen(pShaderText);
+    // Задаём исходники шейдера
+    glShaderSource(ShaderObj, 1, p, Lengths);
+    glCompileShader(ShaderObj);
+    // Проверяем, что шейдер успешно скомпилировался
+    GLint success;
+    glGetShaderiv(ShaderObj, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        GLchar InfoLog[1024];
+        glGetShaderInfoLog(ShaderObj, 1024, NULL, InfoLog);
+        fprintf(stderr, "Error compiling shader type %d: '%s'\n", ShaderType, InfoLog);
+        exit(1);
+    }
+    // Добавляем шейдер в программу
+    glAttachShader(ShaderProgram, ShaderObj);
 }
-
+// Функция, компилирующая программу-шейдер
 static void CompileShaders()
 {
-	GLuint ShaderProgram = glCreateProgram();
+    // Создаём программу-шейдер
+    GLuint ShaderProgram = glCreateProgram();
 
-	if (ShaderProgram == 0) {
-		fprintf(stderr, "Error creating shader program\n");
-		exit(1);
-	}
+    if (ShaderProgram == 0) {
+        fprintf(stderr, "Error creating shader program\n");
+        exit(1);
+    }
+    // Добавляем шейдер для вершин
+    AddShader(ShaderProgram, pVS, GL_VERTEX_SHADER);
+    AddShader(ShaderProgram, pFS, GL_FRAGMENT_SHADER);
 
-	AddShader(ShaderProgram, pVS, GL_VERTEX_SHADER);
-	AddShader(ShaderProgram, pFS, GL_FRAGMENT_SHADER);
+    GLint Success = 0;
+    GLchar ErrorLog[1024] = { 0 };
+    // Линкуем программу
+    glLinkProgram(ShaderProgram);
+    // Проверяем, что линковка прошла успешно
+    glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Success);
+    if (Success == 0) {
+        glGetProgramInfoLog(ShaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
+        fprintf(stderr, "Error linking shader program: '%s'\n", ErrorLog);
+        exit(1);
+    }
 
-	GLint Success = 0;
-	GLchar ErrorLog[1024] = { 0 };
-
-	glLinkProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Success);
-	
-	if (Success == 0) {
-		glGetProgramInfoLog(ShaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
-		
-		fprintf(stderr, "Error linking shader program: '%s'\n", ErrorLog);
-		exit(1);
-	}
-
-	glValidateProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &Success);
-	
-	if (!Success) {
-		glGetProgramInfoLog(ShaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
-		
-		fprintf(stderr, "Invalid shader program: '%s'\n", ErrorLog);
-		exit(1);
-	}
-	glUseProgram(ShaderProgram);
-	gWorldLocation = glGetUniformLocation(ShaderProgram, "gWorld");
-	assert(gWorldLocation != 0xFFFFFFFF);
+    glValidateProgram(ShaderProgram);
+    glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &Success);
+    if (!Success) {
+        glGetProgramInfoLog(ShaderProgram, sizeof(ErrorLog), NULL, ErrorLog);
+        fprintf(stderr, "Invalid shader program: '%s'\n", ErrorLog);
+        exit(1);
+    }
+    // Указываем OpenGL, что надо использовать эту программу
+    glUseProgram(ShaderProgram);
+    // Сохраняем местоположение переменной gWorld
+    gWorldLocation = glGetUniformLocation(ShaderProgram, "gWorld");
+    assert(gWorldLocation != 0xFFFFFFFF);
 }
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
-	glutInit(&argc, argv);
-	glutInitWindowSize(1024, 768);
-	glutInitWindowPosition(100, 100);
-	glutInitDisplayMode(GLUT_RGB);
-	
-	glutCreateWindow("Tutorial 11");
+    glutInit(&argc, argv);
 
-	glutDisplayFunc(RenderSceneCB);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
 
-	vec3 Vertices[4];
-	Vertices[0] = vec3(-0.5f, 0.0f, 0.0f);
-	Vertices[1] = vec3(0.0f, 0.5f, 0.0f);
-	Vertices[2] = vec3(0.5f, 0.0f, 0.0f);
-	Vertices[3] = vec3(0, 0, 0);
+    glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+    glutInitWindowPosition(300, 100);
+    glutCreateWindow("ECG_2");
 
-	InitializeGlutCallbacks();
+    InitializeGlutCallbacks();
 
-	GLenum res = glewInit();
-	if (res != GLEW_OK) {
-		fprintf(stderr, "Error: '%s'\n", glewGetErrorString(res));
-		return 1;
-	}
-	
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+    GLenum res = glewInit();
+    if (res != GLEW_OK) {
+        fprintf(stderr, "Error: '%s'\n", glewGetErrorString(res));
+        return 1;
+    }
 
-	CreateVertexBuffer();
-	CompileShaders();
-	glutMainLoop();
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-	return 0;
+    CreateVertexBuffer();
+
+    CompileShaders();
+
+    glutMainLoop();
+
+    return 0;
 }
